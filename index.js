@@ -1,9 +1,9 @@
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 
-const url = "mongodb+srv://admin:LdQHrR3iAM9u4Mtw@cluster0.ih1f4.mongodb.net";
+const url = "mongodb://127.0.0.1:27017";
 
-const dbName = "api-crew";
+const dbName = "crew-api";
 
 async function main() {
   console.log("Connecting to database...");
@@ -45,55 +45,74 @@ async function main() {
   });
 
   // Update a item by id
-  app.put("/crew/:id", (req , res) => {
+  app.put("/crew/:id", async (req , res) => {
     const id = req.params.id;
-    if (!crew[id-1]) {
+
+    const foundItem = await collection.findOne({_id: new ObjectId(id) });
+    const item = req.body;
+
+    if (!foundItem) {
       res.status(404).send("Crew not found!")
       return;
     };
-    const item = req.body;
-    crew[id - 1] = item;
-    res.send("id: " + id + " updated with sucess");
+
+    await collection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: item,
+      }
+    );
+    res.send(item);
   });
 
   // Patch a item by id
-  app.patch("/crew/:id", (req, res) => {
+  app.patch("/crew/:id", async (req, res) => {
     const id = req.params.id;
-    if (!crew[id-1]) {
+
+    const foundItem = await collection.findOne({_id: new ObjectId(id) });
+
+    if (!foundItem) {
       res.status(404).send("Crew not found!")
       return;
     };
-    crew[id - 1] = {
-      ...crew[id - 1],
-      ...req.body
-    };
-    res.send("id: " + id + " modified with sucess");
+
+    await collection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          ...foundItem,
+          ...item,
+        },
+      }
+    );
+
+    res.send(item);
   })
 
 
   // Delete a item by id
-  app.delete("/crew/:id", (req, res) => {
+  app.delete("/crew/:id", async (req, res) => {
     const id = req.params.id;
-    if (!crew[id-1]) {
-      res.status(404).send("Crew not found!")
+    const foundItem = await collection.findOne({_id: new ObjectId(id) });
+    if (!foundItem) {
+      res.status(404).send("Crew not found!");
       return;
     };
-    delete crew[id-1];
+
+    await collection.deleteOne({ _id: new ObjectId(id) });
+
     res.send("id: " + id + " removed with sucess!");
   });
 
   // Create a crew
-  app.post("/crew", (req, res) => {
-    const item = {
-      id: crew.length + 1,
-      ...req.body,
-    };
-    if (!item.name) {
+  app.post("/crew", async (req, res) => {
+    const item = req.body;
+    if (!item) {
       res.status(400).send("You must inform something in the request body.");
       return ;
     }
-    crew.push(item);
-    console.log(item);
+    await collection.insertOne(item);
+    console.log(item.name + " has been created!");
     res.send(item.name + " has been created!");
   });
 
